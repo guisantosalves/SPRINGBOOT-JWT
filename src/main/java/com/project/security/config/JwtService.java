@@ -45,7 +45,7 @@ public class JwtService {
     }
 
     // method to get a specific part in jwt
-    // Function<funcType, return>
+    // Function<funcType(no parametro), return>
     public <T> T extractClaim(String token, Function<Claims, T> claimResolver) {
         // getting all the claims
         final Claims claims = extractAllClaims(token);
@@ -84,6 +84,14 @@ public class JwtService {
     // verifica se o email do token é igual ao email do userDetails
     public boolean isTokenValid(String token, UserDetails userDetails){
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername()));
+        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    }
+
+    private boolean isTokenExpired(String token) {
+        return extraxctExpiration(token).before(new Date());
+    }
+
+    private Date extraxctExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration);
     }
 }

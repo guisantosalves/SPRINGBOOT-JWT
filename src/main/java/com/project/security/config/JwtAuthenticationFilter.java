@@ -2,6 +2,12 @@ package com.project.security.config;
 
 import java.io.IOException;
 
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.authentication.WebAuthenticationDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -24,7 +30,7 @@ import lombok.RequiredArgsConstructor;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService JwtService;
-
+    private final UserDetailsService userDetailsService;
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -43,10 +49,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         jwt = authHeader.substring(7);
-
         // to extract information from token we need to use a specific class
         userEmail = JwtService.extractUsername(jwt);//extract the userEmail from jwt token
         
+        if(userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null){
+            //tens o email do token mas nao ta autenticado no security spring boot
+            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+            if(JwtService.isTokenValid(jwt, userDetails)){
+                // update contextSecurity
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                    userDetails,
+                    null,
+                    userDetails.getAuthorities()
+                );
+
+                // return the WebAuthenticationDetails containing information about the current request
+                authToken.setDetails(
+                    new WebAuthenticationDetailsSource().buildDetails(request)
+                );
+
+                // auth token -> needs the informations above
+                SecurityContextHolder.getContext().setAuthentication(authToken); // updating
+            }
+        }
+        filterChain.doFilter(request, response);// next()
     }
 
 }
